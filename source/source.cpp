@@ -37,7 +37,7 @@ void renderScene(void)
               0.0f, 0.0f, 0.0f,
               0.0f, 1.0f, 0.0f);
 
-    glRotatef(angle, 0.0f, 0.0f, 1.0f);                             //Rotate for the tutorial
+    glRotatef(angle, 0.0f, 0.0f, 1.0f);                             //Rotate camera
 
     glutSwapBuffers();
 }
