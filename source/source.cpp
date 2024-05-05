@@ -7,7 +7,11 @@ using namespace std;
 
 float angle = 0.0;              //Angle of rotation for camera direction
 float lx = 0.0f, lz = -1.0f;    //Vector representing camera direction
-float x = 0.0f, z = 5.0f;       //XZ position of the camera
+float X = 0.0f, Z = 5.0f;       //XZ position of the camera
+float velocity = 0.1f;
+//Key states - 0 when not pressed
+float deltaAngle = 0.0f;
+float deltaMove = 0;
 
 // Initialise the window
 void Initialise(int *argc, char **argv)
@@ -26,18 +30,87 @@ void Initialise(int *argc, char **argv)
     glutCreateWindow("Untitled FPS Game");
 }
 
+//Draw snowman
+void drawSnowMan()
+{
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+    //Body
+    glTranslatef(0.0f, 0.75f, 0.0f);
+    glutSolidSphere(0.75f, 20, 20);
+
+    //Head
+    glTranslatef(0.0f, 1.0f, 0.0f);
+    glutSolidSphere(0.25f, 20, 20);
+
+    //Eyes
+    glPushMatrix();
+    glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+
+    glTranslatef(0.05f, 0.10f, 0.18f);
+    glutSolidSphere(0.05f, 10, 10);
+
+    glTranslatef(-0.1f, 0.0f, 0.0f);
+    glutSolidSphere(0.05f, 10, 10);
+
+    glPopMatrix();
+
+    //Nose
+    glColor4f(1.0f, 0.5f, 0.5f, 1.0f);
+    glutSolidCone(0.08f, 0.5f, 10, 2);
+}
+
+//Function to calculate position depending on key press
+void computePosition(float deltaMove)
+{
+    X += deltaMove * lx * velocity;
+    Z += deltaMove * lz * velocity;
+}
+
+//Function to calculate direction depending on key press
+void computeDirection(float deltaAngle)
+{
+    angle += deltaAngle;
+    lx = sin(angle);
+    lz = -cos(angle);
+}
+
 // Display callback function
 void renderScene(void)
 {
+    if (deltaMove) computePosition(deltaMove);
+    if (deltaAngle) computeDirection(deltaAngle);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);             //Reset colour and depth buffers
     glLoadIdentity();                                               //Reset transformations
 
     //Set camera
-    gluLookAt(0.0f, 0.0f, 10.0f,                                    
-              0.0f, 0.0f, 0.0f,
+    gluLookAt(X, 1.0f, Z,                                    
+              X+lx, 1.0f, Z+lz,
               0.0f, 1.0f, 0.0f);
 
-    glRotatef(angle, 0.0f, 0.0f, 1.0f);                             //Rotate camera
+    //Draw ground
+    glColor4f(0.9f, 0.9f, 0.9f, 1.0f);
+    glBegin(GL_QUADS);
+
+    glVertex3f(-100.0f, 0.0f, -100.0f);
+    glVertex3f(-100.0f, 0.0f, 100.0f);
+    glVertex3f(100.0f, 0.0f, 100.0f);
+    glVertex3f(100.0f, 0.0f, -100.0f);
+
+    glEnd();
+
+    //36 snowmen
+    for (int i = -3; i < 3; i++)
+    {
+        for (int j = -3; j < 3; j++)
+        {
+            glPushMatrix();
+            glTranslatef(i * 10.0, 0, j * 10.0);
+            drawSnowMan();
+            glPopMatrix();
+        }
+    }
 
     glutSwapBuffers();
 }
@@ -57,9 +130,48 @@ void resize(int w, int h)
 }
 
 //Normal key input function
-void normalKeys(unsigned char key, int x, int y)
+void keyDown(unsigned char key, int x, int y)
 {
-    if (key == 27) exit(0);
+    switch (key)
+    {
+    case 27:
+        exit(0);
+        break;
+
+    case 'a':
+        deltaAngle = -0.01f;
+        break;
+
+    case 'd':
+        deltaAngle += 0.01f;
+        break;
+
+    case 'w':
+        deltaMove = 0.5f;
+        break;
+
+    case 's':
+        deltaMove = -0.5f;
+        break;
+    }
+}
+
+void keyUp(unsigned char key, int x, int y)
+{
+    switch (key)
+    {
+    case 'a':
+
+    case 'd':
+        deltaAngle = 0.0f;
+        break;
+
+    case 'w':
+
+    case 's':
+        deltaMove = 0.0f;
+        break;
+    }
 }
 
 //Special key input function
@@ -76,8 +188,12 @@ int main(int argc, char **argv)
     glutDisplayFunc(renderScene);               //Set the display callback function
     glutReshapeFunc(resize);                    //Set the window reshape callback function
     glutIdleFunc(renderScene);                  //Set the idle callback function
-    glutKeyboardFunc(normalKeys);               //Set the normal key press callback function
-    glutSpecialFunc(specialKeys);               //Set the special key press callback function
+
+    glutKeyboardFunc(keyDown);
+    glutIgnoreKeyRepeat(1);
+    glutKeyboardUpFunc(keyUp);
+
+    glEnable(GL_DEPTH_TEST);                    //OpenGL init
 
     glutMainLoop();
 
