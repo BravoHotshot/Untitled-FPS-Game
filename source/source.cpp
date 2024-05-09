@@ -9,9 +9,12 @@ float angle = 0.0;              //Angle of rotation for camera direction
 float lx = 0.0f, lz = -1.0f;    //Vector representing camera direction
 float X = 0.0f, Z = 5.0f;       //XZ position of the camera
 float velocity = 0.1f;
-//Key states - 0 when not pressed
 float deltaAngle = 0.0f;
 float deltaMove = 0;
+float deltaStrafe = 0;
+int xOrigin = -1;
+int mouseX = -1;                //To update xOrigin while moving camera
+bool deltaChange = false;
 
 // Initialise the window
 void Initialise(int *argc, char **argv)
@@ -61,25 +64,58 @@ void drawSnowMan()
 }
 
 //Function to calculate position depending on key press
-void computePosition(float deltaMove)
+void computePosition(float deltaMove, float deltaStrafe)
 {
-    X += deltaMove * lx * velocity;
-    Z += deltaMove * lz * velocity;
+    X += ((deltaMove * lx) + (deltaStrafe * lz)) * velocity;
+    Z += ((deltaMove * lz) + (-deltaStrafe * lx)) * velocity;
 }
 
 //Function to calculate direction depending on key press
-void computeDirection(float deltaAngle)
+void computeDirection(float deltaAngleArgument)
 {
-    angle += deltaAngle;
+    angle += deltaAngleArgument;
     lx = sin(angle);
     lz = -cos(angle);
+
+    if (deltaChange)
+    {
+        deltaAngle = 0.0f;
+        xOrigin = mouseX;
+        deltaChange = false;
+    }
+}
+
+//Function to register mouse button press
+void mouseButton(int button, int state, int x, int y)
+{
+    if (button == GLUT_RIGHT_BUTTON) {
+        if (state == GLUT_UP) {
+            xOrigin = -1;
+            deltaAngle = 0.0f;
+        }
+        else
+        {
+            mouseX = x;
+            xOrigin = x;
+        }
+    }
+}
+
+//Function to register mouse movement when a button is pressed
+void mouseMove(int x, int y)
+{
+    if (xOrigin >= 0) {
+        deltaAngle = (x - xOrigin) * 0.01f;
+        mouseX = x;
+        deltaChange = true;
+    }
 }
 
 // Display callback function
 void renderScene(void)
 {
-    if (deltaMove) computePosition(deltaMove);
-    if (deltaAngle) computeDirection(deltaAngle);
+    if (deltaMove || deltaStrafe) computePosition(deltaMove, deltaStrafe);
+    if (deltaAngle || deltaStrafe) computeDirection(deltaAngle);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);             //Reset colour and depth buffers
     glLoadIdentity();                                               //Reset transformations
@@ -139,19 +175,19 @@ void keyDown(unsigned char key, int x, int y)
         break;
 
     case 'a':
-        deltaAngle = -0.01f;
+        deltaStrafe += 0.5f;
         break;
 
     case 'd':
-        deltaAngle += 0.01f;
+        deltaStrafe += -0.5f;
         break;
 
     case 'w':
-        deltaMove = 0.5f;
+        deltaMove += 0.5f;
         break;
 
     case 's':
-        deltaMove = -0.5f;
+        deltaMove += -0.5f;
         break;
     }
 }
@@ -161,15 +197,19 @@ void keyUp(unsigned char key, int x, int y)
     switch (key)
     {
     case 'a':
+        deltaStrafe -= 0.5f;
+        break;
 
     case 'd':
-        deltaAngle = 0.0f;
+        deltaStrafe -= -0.5f;
         break;
 
     case 'w':
+        deltaMove -= 0.5f;
+        break;
 
     case 's':
-        deltaMove = 0.0f;
+        deltaMove -= -0.5f;
         break;
     }
 }
@@ -192,6 +232,8 @@ int main(int argc, char **argv)
     glutKeyboardFunc(keyDown);
     glutIgnoreKeyRepeat(1);
     glutKeyboardUpFunc(keyUp);
+    glutMouseFunc(mouseButton);
+    glutMotionFunc(mouseMove);
 
     glEnable(GL_DEPTH_TEST);                    //OpenGL init
 
