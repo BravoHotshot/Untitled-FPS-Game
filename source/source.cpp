@@ -1,0 +1,243 @@
+#include <iostream>
+#include <stdlib.h>
+#include <GL/glut.h>
+#include <windows.h>
+#include <winuser.h>
+using namespace std;
+
+float angle = 0.0;              //Angle of rotation for camera direction
+float lx = 0.0f, lz = -1.0f;    //Vector representing camera direction
+float X = 0.0f, Z = 5.0f;       //XZ position of the camera
+float velocity = 0.1f;
+float deltaAngle = 0.0f;
+float deltaMove = 0;
+float deltaStrafe = 0;
+int xOrigin = -1;
+int mouseX = -1;                //To update xOrigin while moving camera
+bool deltaChange = false;
+
+// Initialise the window
+void Initialise(int *argc, char **argv)
+{
+    const long screenWidth = ::GetSystemMetrics(SM_CXSCREEN);
+    const long screenHeight = ::GetSystemMetrics(SM_CYSCREEN);
+    long windowWidth = 0.9 * screenWidth;
+    long windowHeight = 0.9 * screenHeight;
+    long windowPositionX = 0.05 * screenWidth;
+    long windowPositionY = 0.05 * screenHeight;
+
+    glutInit(argc, argv);
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
+    glutInitWindowPosition(windowPositionX, windowPositionY);
+    glutInitWindowSize(windowWidth, windowHeight);
+    glutCreateWindow("Untitled FPS Game");
+}
+
+//Draw snowman
+void drawSnowMan()
+{
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+    //Body
+    glTranslatef(0.0f, 0.75f, 0.0f);
+    glutSolidSphere(0.75f, 20, 20);
+
+    //Head
+    glTranslatef(0.0f, 1.0f, 0.0f);
+    glutSolidSphere(0.25f, 20, 20);
+
+    //Eyes
+    glPushMatrix();
+    glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+
+    glTranslatef(0.05f, 0.10f, 0.18f);
+    glutSolidSphere(0.05f, 10, 10);
+
+    glTranslatef(-0.1f, 0.0f, 0.0f);
+    glutSolidSphere(0.05f, 10, 10);
+
+    glPopMatrix();
+
+    //Nose
+    glColor4f(1.0f, 0.5f, 0.5f, 1.0f);
+    glutSolidCone(0.08f, 0.5f, 10, 2);
+}
+
+//Function to calculate position depending on key press
+void computePosition(float deltaMove, float deltaStrafe)
+{
+    X += ((deltaMove * lx) + (deltaStrafe * lz)) * velocity;
+    Z += ((deltaMove * lz) + (-deltaStrafe * lx)) * velocity;
+}
+
+//Function to calculate direction depending on key press
+void computeDirection(float deltaAngleArgument)
+{
+    angle += deltaAngleArgument;
+    lx = sin(angle);
+    lz = -cos(angle);
+
+    if (deltaChange)
+    {
+        deltaAngle = 0.0f;
+        xOrigin = mouseX;
+        deltaChange = false;
+    }
+}
+
+//Function to register mouse button press
+void mouseButton(int button, int state, int x, int y)
+{
+    if (button == GLUT_RIGHT_BUTTON) {
+        if (state == GLUT_UP) {
+            xOrigin = -1;
+            deltaAngle = 0.0f;
+        }
+        else
+        {
+            mouseX = x;
+            xOrigin = x;
+        }
+    }
+}
+
+//Function to register mouse movement when a button is pressed
+void mouseMove(int x, int y)
+{
+    if (xOrigin >= 0) {
+        deltaAngle = (x - xOrigin) * 0.01f;
+        mouseX = x;
+        deltaChange = true;
+    }
+}
+
+// Display callback function
+void renderScene(void)
+{
+    if (deltaMove || deltaStrafe) computePosition(deltaMove, deltaStrafe);
+    if (deltaAngle || deltaStrafe) computeDirection(deltaAngle);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);             //Reset colour and depth buffers
+    glLoadIdentity();                                               //Reset transformations
+
+    //Set camera
+    gluLookAt(X, 1.0f, Z,                                    
+              X+lx, 1.0f, Z+lz,
+              0.0f, 1.0f, 0.0f);
+
+    //Draw ground
+    glColor4f(0.9f, 0.9f, 0.9f, 1.0f);
+    glBegin(GL_QUADS);
+
+    glVertex3f(-100.0f, 0.0f, -100.0f);
+    glVertex3f(-100.0f, 0.0f, 100.0f);
+    glVertex3f(100.0f, 0.0f, 100.0f);
+    glVertex3f(100.0f, 0.0f, -100.0f);
+
+    glEnd();
+
+    //36 snowmen
+    for (int i = -3; i < 3; i++)
+    {
+        for (int j = -3; j < 3; j++)
+        {
+            glPushMatrix();
+            glTranslatef(i * 10.0, 0, j * 10.0);
+            drawSnowMan();
+            glPopMatrix();
+        }
+    }
+
+    glutSwapBuffers();
+}
+
+//Resize function
+void resize(int w, int h)
+{
+    if (h <= 0) h = 1;                          //Check for division by 0
+
+    float ratio = 1.0 * w / h;                  //Compute window ratio
+
+    glMatrixMode(GL_PROJECTION);                //Use the projection matrix - defines the viewing volume
+    glLoadIdentity();                           //Load identity matrix for initialisation
+    glViewport(0, 0, w, h);                     //Set viewport to be the whole window
+    gluPerspective(45, ratio, 1, 1000);         //Set perspective parameters
+    glMatrixMode(GL_MODELVIEW);                 //Use modelview matrix
+}
+
+//Normal key input function
+void keyDown(unsigned char key, int x, int y)
+{
+    switch (key)
+    {
+    case 27:
+        exit(0);
+        break;
+
+    case 'a':
+        deltaStrafe += 0.5f;
+        break;
+
+    case 'd':
+        deltaStrafe += -0.5f;
+        break;
+
+    case 'w':
+        deltaMove += 0.5f;
+        break;
+
+    case 's':
+        deltaMove += -0.5f;
+        break;
+    }
+}
+
+void keyUp(unsigned char key, int x, int y)
+{
+    switch (key)
+    {
+    case 'a':
+        deltaStrafe -= 0.5f;
+        break;
+
+    case 'd':
+        deltaStrafe -= -0.5f;
+        break;
+
+    case 'w':
+        deltaMove -= 0.5f;
+        break;
+
+    case 's':
+        deltaMove -= -0.5f;
+        break;
+    }
+}
+
+//Special key input function
+void specialKeys(int key, int x, int y)
+{
+    
+}
+
+//Main
+int main(int argc, char **argv)
+{
+    Initialise(&argc, argv);                    //Call the user-made initialisation function
+
+    glutDisplayFunc(renderScene);               //Set the display callback function
+    glutReshapeFunc(resize);                    //Set the window reshape callback function
+    glutIdleFunc(renderScene);                  //Set the idle callback function
+
+    glutKeyboardFunc(keyDown);
+    glutIgnoreKeyRepeat(1);
+    glutKeyboardUpFunc(keyUp);
+    glutMouseFunc(mouseButton);
+    glutMotionFunc(mouseMove);
+
+    glEnable(GL_DEPTH_TEST);                    //OpenGL init
+
+    glutMainLoop();
+
+    return 0;
+}
